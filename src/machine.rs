@@ -1,6 +1,10 @@
 use std::{fs::File, io::Read};
 
 
+
+
+//TODO: Refactor OPCODES to functions and a hashmap.
+//* INDEV VERSION
 pub struct Machine {
     memsiz: usize, // size of memory
     memory:Vec<u8>,
@@ -18,6 +22,8 @@ impl Machine {
         self.memsiz = 0x1000;
         let mut i = 0x0;
         let mut pc = self.pc;
+        let mut sp = self.sp;
+        let mut v = self.v;
         let force_close = false;
         println!("{:x}", &self.memory[0x201]);
 
@@ -39,27 +45,136 @@ impl Machine {
                             //Return from a subroutine.
                             //The interpreter sets the program counter to the address at the top of the stack,
                             //then subtracts 1 from the stack pointer.
-                            pc = self.stack[self.sp as usize] as u16;
-                            self.sp = self.sp - 1;
-                        },
+                            pc = self.stack[sp as usize] as u16;
+                            sp = sp - 1;
+                        }
                         0x0E0 => {
                             // Clear spreen
                             println!("CLS");
                         },
                         _ => ()
                     }
-                },
+                }
                 1 => {
                     // The interpreter sets the program counter to nnn.
                     pc = nnn & 0xFFF; 
-                },
+                }
                 2 => {
                     //The interpreter increments the stack pointer,
                     //then puts the current PC on the top of the stack.
                     //The PC is then set to nnn.
-                    self.sp +=1;
-                    self.stack[self.sp as usize] = pc;
+                    sp +=1;
+                    self.stack[sp as usize] = pc;
                     pc = nnn;
+                }
+                3 => {
+                    /*
+                    Skip next instruction if Vx = kk.
+                    The interpreter compares register Vx to kk, and if they are equal,
+                    increments the program counter by 2.
+                    */
+                    if v[x as usize] == kk {
+                        pc += 2;
+                    }
+                }
+                4 => {
+                    /*
+                        Skip next instruction if Vx != kk.
+                        The interpreter compares register Vx to kk,
+                        and if they are not equal, increments the program counter by 2.                    
+                    */
+                    if v[x as usize] != kk {
+                        pc += 2;
+                    }
+                }
+                5 => {
+                    /*
+                    Skip next instruction if Vx = Vy.
+                    The interpreter compares register Vx to register Vy, and if they are equal,
+                    increments the program counter by 2.
+                    */
+                    if v[x as usize] == v[y as usize] {
+                        pc += 2;
+                    }
+                }
+                6 => {
+                    /*
+                    Set Vx = kk.
+                    The interpreter puts the value kk into register Vx.
+                    */
+                    v[x as usize] = kk;
+                }
+                7 => {
+                    /*
+                    Set Vx = Vx + kk.
+                    Adds the value kk to the value of register Vx,
+                    then stores the result in Vx.
+                    */
+                    v[x as usize] = v[x as usize] + kk;
+                }
+                8 => {
+                    match n {
+                        0 => {
+                            /*
+                            Set Vx = Vy.
+                            Stores the value of register Vy in register Vx.
+                            */
+                            v[x as usize] = v[y as usize];
+                        }
+                        1 => {
+                            /*
+                            Set Vx = Vx OR Vy.
+                            Performs a bitwise OR on the values of Vx and Vy,
+                            then stores the result in Vx.
+                            A bitwise OR compares the corrseponding bits from two values,
+                            and if either bit is 1, then the same bit in the result is also 1.
+                            Otherwise, it is 0.
+                            */
+                            v[x as usize] = v[x as usize] | v[y as usize];
+                        }
+                        2 => {
+                            /*
+                            Set Vx = Vx AND Vy.
+                            Performs a bitwise AND on the values of Vx and Vy, 
+                            then stores the result in Vx. A bitwise AND compares the corrseponding bits from two values, 
+                            and if both bits are 1, then the same bit in the result is also 1.
+                            Otherwise, it is 0.
+                            */
+                            v[x as usize] = v[x as usize] & v[y as usize];
+
+                        }
+                        3 => {
+                            /*
+                            Set Vx = Vx XOR Vy.
+                            Performs a bitwise exclusive OR on the values of Vx and Vy,
+                            then stores the result in Vx.
+                            An exclusive OR compares the corrseponding bits from two values,
+                            and if the bits are not both the same,
+                            then the corresponding bit in the result is set to 1.
+                            Otherwise, it is 0.
+                            */
+                            v[x as usize] = v[x as usize] ^ v[y as usize];
+                        }
+                        4 => {
+                            if (v[x as usize] + v[y as usize]) > 0xFF {
+                                v[0xF] = 1;
+                            }
+                            v[x as usize] =  v[x as usize] + v[y as usize];
+                        }
+                        5 => {
+
+                        }
+                        6 => {
+
+                        }
+                        7 => {
+
+                        }
+                        0xE => {
+
+                        }
+                        _ => ()
+                    }
                 }
                 _ => {
 
