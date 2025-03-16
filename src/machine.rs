@@ -15,8 +15,8 @@ pub struct Machine {
     pc: u16, // Program counter
     stack: [u16; 16],
     sp: u8, // Stack counter
-    tc:u8, // Time counter
-    soc:u8, // Sound counter
+    dt:u8, // Time counter
+    st:u8, // Sound counter
 }
 
 impl Machine {
@@ -27,6 +27,9 @@ impl Machine {
         let mut sp = self.sp;
         let mut v = self.v;
         let force_close = false;
+        let mut pause = false;
+        let mut key_pressed = false;
+        let mut key_value:u16 = 0;
 
         while !force_close {
             let opcode:u16 = ((self.memory[(pc & 0xFFF) as usize] as u16) << 8 | (self.memory[((pc+1) & 0xFFF) as usize]) as u16).into();
@@ -255,24 +258,118 @@ impl Machine {
                     v[x as usize] = random_range(0..255) & kk;
                 }
                 0xD => {
-                    
+                    //TODO: Screen DRAW --> Will be done after implementing Screen with SDL
                 }
                 0xE => {
-                    
+                    match kk {
+                        0x9E => {
+                            /*
+                            Ex9E - SKP Vx
+                            Skip next instruction if key with the value of Vx is pressed.
+                            Checks the keyboard,
+                            and if the key corresponding to the value of Vx is currently in the down position,
+                            PC is increased by 2.
+                            TODO: Will be done after implementing Screen
+                            
+                             */
+                        }
+                        0xA1 => {
+
+                            /*
+                            ExA1 - SKNP Vx
+                            Skip next instruction if key with the value of Vx is not pressed.
+                            Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2. 
+                            TODO: Will be done after implementing Screen
+                            */
+
+                        }
+                        _ => ()
+                    }
                 }
                 0xF => {
-                    
+                    match kk {
+                        0x07 => {
+                            /*
+                            Set Vx = delay timer value.
+                            The value of DT is placed into Vx
+                            */
+                            v[x as usize] = self.dt as u16;
+                        }
+                        0x0A => {
+                            /*
+                            Fx0A - LD Vx, K
+                            Wait for a key press, store the value of the key in Vx.
+                            All execution stops until a key is pressed, then the value of that key is stored in Vx.
+                            TODO: Will be completed when screen is implemented
+                            */
+                            if !key_pressed {
+                                pause = true
+                            }else {
+                                v[x as usize] = key_value;
+                            }
+                        }
+                        0x15 => {
+                            //* Set delay timer to vx value
+                            self.dt = v[x as usize] as u8;
+                        }
+                        0x18 => {
+                            //* Set sound timer to vx value
+                            self.st = v[x as usize] as u8;
+                        }
+                        0x1E => {
+                            i = i + v[x as usize];
+                        }
+                        0x29 => {
+                            //TODO: Will be done when screen is implemented.
+                            // I = LOCATION OF SPRITE IN VALUE OF VX
+                        }
+                        0x33 => {
+                            /*
+                            Fx33 - LD B, Vx
+                            Store BCD representation of Vx in memory locations I, I+1, and I+2.
+                            The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
+                            */
+                            let c = (v[x as usize] / 100 )as u8;
+                            let d = ((v[x as usize] - c as u16) / 10) as u8;
+                            let u = ((v[x as usize] - c as u16) - d as u16) as u8;
+                            self.memory[i as usize] = c;
+                            self.memory[(i + (1 as u16)) as usize] = d;
+                            self.memory[(i + (2 as u16)) as usize] = u;
+                        }
+
+                        0x55 => {
+                            /*
+                            Store registers V0 through Vx in memory starting at location I.
+                            The interpreter copies the values of registers V0 through Vx into memory,
+                            starting at the address in I.
+
+                            */
+                            for register in 0..x {
+                                self.memory[(i + register)as usize] = v[register as usize] as u8;
+                            }
+                        }
+                        0x65 => {
+                            /*
+                            Read registers V0 through Vx from memory starting at location I.
+                            The interpreter reads values from memory starting at location I into registers V0 through Vx.
+                            */
+                            for register in 0..x {
+                                v[register as usize]= self.memory[(i + register)as usize] as u16;
+                            }
+                        }
+                        _ => ()
+                    }
                 }
                 
                 _ => {
 
                 }
             };
-            if pc < (self.memsiz) as u16 {
+            if pc < (self.memsiz) as u16 && !pause {
                 pc +=1;
                 // print!("{:x}", opcode);
 
-            }else{
+            }else if !pause{
                 pc = 0;
             }
 
@@ -309,8 +406,8 @@ impl Machine {
             pc: 0x200,
             stack: [0; 16],
             sp: 0,
-            soc: 0,
-            tc: 0
+            st: 0,
+            dt: 0
 
         }
     }
