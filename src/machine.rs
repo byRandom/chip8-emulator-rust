@@ -1,5 +1,7 @@
 use std::{fs::File, io::Read};
 
+use rand::random_range;
+
 
 
 
@@ -8,7 +10,7 @@ use std::{fs::File, io::Read};
 pub struct Machine {
     memsiz: usize, // size of memory
     memory:Vec<u8>,
-    v: [u16;0xF], // V registries
+    v: [u16;0x10], // V registries
     i: u16, // Memory addresses
     pc: u16, // Program counter
     stack: [u16; 16],
@@ -25,17 +27,16 @@ impl Machine {
         let mut sp = self.sp;
         let mut v = self.v;
         let force_close = false;
-        println!("{:x}", &self.memory[0x201]);
 
         while !force_close {
-            let opcode:u16 = ((self.memory[(pc & 0xFFF) as usize] as u16) << 8 | (self.memory[((pc +1) & 0xFFF) as usize]) as u16).into();
-            let nnn  = opcode & 0xFFF;
+            let opcode:u16 = ((self.memory[(pc & 0xFFF) as usize] as u16) << 8 | (self.memory[((pc+1) & 0xFFF) as usize]) as u16).into();
+            let nnn  = opcode & 0x0FFF;
             let  n = opcode & 0xF;
             let  kk = opcode & 0x00FF;
             let  x = (opcode & 0xF00)>> 8;
             let  y = (opcode & 0x00F0) >> 4;
             let  opcode_index = (opcode & 0xF000) >> 12;
-
+            print!("{}", opcode);
             // println!("{opcode_index:x}");
             match opcode_index {
                 0 => {
@@ -49,7 +50,7 @@ impl Machine {
                             sp = sp - 1;
                         }
                         0x0E0 => {
-                            // Clear spreen
+                            // Clear screen
                             println!("CLS");
                         },
                         _ => ()
@@ -162,30 +163,119 @@ impl Machine {
                             v[x as usize] =  v[x as usize] + v[y as usize];
                         }
                         5 => {
+                            /*
+                            Set Vx = Vx - Vy, set VF = NOT borrow.
+                            If Vx > Vy, then VF is set to 1,
+                            otherwise 0. Then Vy is subtracted from Vx,
+                            and the results stored in Vx.
+                            */
+                            if v[x as usize] > v[y as usize]{
+                                v[0xF] = 1;
+                            }else{
+                                v[0xF] = 0;
+                            }
+                            v[x as usize] = v[x as usize] - v[y as usize] 
 
                         }
                         6 => {
-
+                            /* Set Vx = Vx SHR 1.
+                            If the least-significant bit of Vx is 1,
+                            then VF is set to 1,
+                            otherwise 0. Then Vx is divided by 2.
+                            */
+                            v[0xF] = v[x as usize] & 0x01; 
+                            v[x as usize] >>= 1;
                         }
                         7 => {
-
+                            /*
+                            Set Vx = Vy - Vx, set VF = NOT borrow.
+                            If Vy > Vx, 
+                            then VF is set to 1, otherwise 0. 
+                            Then Vx is subtracted from Vy, 
+                            and the results stored in Vx.
+                             */
+                            if v[y as usize] > v[x as usize] {
+                                v[0xF] = 1;
+                            }else{
+                                v[0xF] = 0;
+                            }
+                            v[x as usize] = v[y as usize] - v[x as usize];
                         }
                         0xE => {
-
+                            /* Set Vx = Vx SHL 1.
+                            If the most-significant bit of Vx is 1,
+                            then VF is set to 1, otherwise to 0. 
+                            Then Vx is multiplied by 2.
+                            */
+                            if (v[x as usize] & 0x80) != 0 {
+                                v[0xF] = 1;
+                            }else{
+                                v[0xF] = 0;
+                            }
+                            v[x as usize] <<= 1;
                         }
                         _ => ()
                     }
                 }
+                
+                9 => {
+                    /*
+                    Skip next instruction if Vx != Vy.
+                    The values of Vx and Vy are compared,
+                    and if they are not equal,
+                    the program counter is increased by 2.
+                    */
+                    if v[x as usize] != v[y as usize]{
+                        pc +=2;
+                    }
+                }
+
+                0xA => {
+                    /*
+                    Set I = nnn.
+                    The value of register I is set to nnn.
+                    */
+                    i = nnn;
+                }
+                0xB => {
+                    /*
+                    Jump to location nnn + V0.
+                    The program counter is set to nnn plus the value of V0.
+                    */
+                    pc = nnn + v[0];
+                }
+                0xC => {
+                    /*
+                    Set Vx = random byte AND kk.
+                    The interpreter generates a random number from 0 to 255, 
+                    which is then ANDed with the value kk. 
+                    The results are stored in Vx. 
+                    See instruction 8xy2 for more information on AND.
+                    */
+                    v[x as usize] = random_range(0..255) & kk;
+                }
+                0xD => {
+                    
+                }
+                0xE => {
+                    
+                }
+                0xF => {
+                    
+                }
+                
                 _ => {
 
                 }
             };
             if pc < (self.memsiz) as u16 {
                 pc +=1;
-                println!("{pc}");
                 // print!("{:x}", opcode);
 
-            };
+            }else{
+                pc = 0;
+            }
+
         }
     }
 
@@ -203,13 +293,10 @@ impl Machine {
         }
         let memory = &self.memory;
         let memory_length = memory.len();
-        println!("{memory:x?}");
         if memory_length < 0x1000 {
             let memory_padding = 0x1000 - memory_length;
             let mut padding: Vec<u8> = vec![0; memory_padding];
             let _ = &self.memory.append(&mut padding);
-            let new_memory_length = &self.memory.len();
-            println!("New memory lenght: {new_memory_length}");
         }
     }
 
@@ -217,7 +304,7 @@ impl Machine {
         Machine{
             memsiz: 4096,
             memory: vec![0; 0x200],
-            v: [0; 15],
+            v: [0; 16],
             i: 0,
             pc: 0x200,
             stack: [0; 16],
