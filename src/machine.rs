@@ -1,11 +1,10 @@
-use std::{fs::File, io::Read, vec};
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+
+use std::{ fs::File, io::Read, vec};
+
 
 use rand::random_range;
 
-use crate::screen::{self, Screen};
-
+use crate::screen::Screen;
 
 
 //TODO: Refactor OPCODES to functions and a hashmap.
@@ -20,6 +19,7 @@ pub struct Machine {
     sp: u8, // Stack counter
     dt:u8, // Time counter
     st:u8, // Sound counter
+    // opcode_index_map: HashMap<u16, fn(&mut Machine, u16)>,
 }
 
 impl Machine {
@@ -56,8 +56,8 @@ impl Machine {
 
 
         self.memory[0x050..0x0A0].copy_from_slice(&font);
-        println!("{:?}", self.memory);
-        let mut screen = Screen::new(800, 600);
+        // println!("{:?}", self.memory);
+        let mut screen = Screen::new(1920, 1080);
        
         while !force_close {
             let opcode:u16 = ((self.memory[(pc & 0xFFF) as usize] as u16) << 8 | (self.memory[((pc+1) & 0xFFF) as usize]) as u16).into();
@@ -211,10 +211,11 @@ impl Machine {
                             v[x as usize] = (v[x as usize] ^ v[y as usize]) & 0xFF;
                         }
                         0x4 => {
-                            if (v[x as usize] + v[y as usize]) > 0xFF {
+                            
+                            if (v[x as usize] as u16 + v[y as usize] as u16) > 0xFF {
                                 v[0xF] = 1;
                             }
-                            v[x as usize] =  (v[x as usize] + v[y as usize]) & 0xFF;
+                            v[x as usize] =  (((v[x as usize] as u16) + (v[y as usize] as u16)) & 0xFF) as u8;
                         }
                         0x5 => {
                             /*
@@ -339,8 +340,8 @@ impl Machine {
                             }
                         }
                     }
-                    println!("I: {:X}, X: {}, Y: {}", i, x, y);
-                    println!("Sprite en I: {:X?}, Bytes: {:?}", i, &self.memory[i as usize..(i + n) as usize]);
+                    // println!("I: {:X}, X: {}, Y: {}", i, x, y);
+                    // println!("Sprite en I: {:X?}, Bytes: {:?}", i, &self.memory[i as usize..(i + n) as usize]);
                     screen.update(); // Update the screen after drawing
                     
                 }
@@ -490,4 +491,24 @@ impl Machine {
 
         }
     }
+
+    // fn function_0x0nnn(&mut self, opcode:u16){
+
+    //     match opcode {
+    //         0x0EE => {
+    //             //Return from a subroutine.
+    //             //The interpreter sets the program counter to the address at the top of the stack,
+    //             //then subtracts 1 from the stack pointer.
+    //             self.pc = self.stack[sp as usize] as u16;
+    //             self.sp = self.sp - 1;
+    //         }
+    //         0x0E0 => {
+    //             // Clear screen
+    //             screen.screen_data = vec![0; (screen.width * screen.height) as usize];
+    //         },
+    //         _ => ()
+    //     }
+    // }
+    
+
 }

@@ -10,6 +10,7 @@ pub struct Screen {
     pub height: u32,
     pixel_size: u32,
     pub screen_data: Vec<u8>,
+    pub screen_buffer: Vec<u8>,
     pub event_pump: sdl2::EventPump,
     pub force_close: bool,
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
@@ -19,15 +20,20 @@ pub struct Screen {
 
 impl Screen {
     pub fn update(&mut self) {
-        
+        if !self.started{
             self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+
+
             self.canvas.clear();
             self.canvas.fill_rect(sdl2::rect::Rect::new(0, 0, self.width, self.height)).unwrap();            
             self.canvas.present();
             self.started = true;
+            println!("Screen started");
+        }
+            
         
 
-        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        
         for event in self.event_pump.poll_iter() {
             match event {
                 Event::Quit {..} |
@@ -38,20 +44,37 @@ impl Screen {
             }
         }
 
+
+
         // The rest of the game loop goes here...
 
-        self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+
+        //We draw the screen data
+        // If pixel is not different from screen buffer, we draw it
+
         for pixel in 0..self.screen_data.len() {
-            if self.screen_data[pixel] == 1 {
-                let x = (pixel % 64) as i32;
-                let y = (pixel / 64) as i32;
-                self.canvas.fill_rect(sdl2::rect::Rect::new(x * self.pixel_size as i32, y * self.pixel_size as i32, self.pixel_size, self.pixel_size)).unwrap();
+            if self.screen_buffer[pixel] != self.screen_data[pixel] {
+                if self.screen_data[pixel] == 1 {
+                    let x = (pixel % 64) as i32;
+                    let y = (pixel / 64) as i32;
+                    self.canvas.set_draw_color(Color::RGB(255, 255, 255));
+                    self.canvas.fill_rect(sdl2::rect::Rect::new(x * self.pixel_size as i32, y * self.pixel_size as i32, self.pixel_size, self.pixel_size)).unwrap();
+                }else if self.screen_data[pixel] == 0 {
+                    let x = (pixel % 64) as i32;
+                    let y = (pixel / 64) as i32;
+                    self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+                    self.canvas.fill_rect(sdl2::rect::Rect::new(x * self.pixel_size as i32, y * self.pixel_size as i32, self.pixel_size, self.pixel_size)).unwrap();
+                }
             }
         }
+            
+        self.screen_buffer = self.screen_data.clone();
+        
+        
         
         self.canvas.present();
         
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 
     pub fn close (&mut self) {
@@ -84,6 +107,7 @@ impl Screen {
             canvas: create_canvas(width, heigth),
             force_close: false,
             started: false,
+            screen_buffer: vec![0; (width * heigth) as usize],
         }
     }
 }
