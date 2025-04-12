@@ -33,9 +33,9 @@ impl Machine {
         let mut st = self.st;
         let mut force_close = false;
         let mut pause = false;
-        let mut key_pressed = false;
-        let mut key_value:u16 = 0;
-        let mut font: Vec<u8> = vec![
+        let key_pressed = false;
+        let key_value:u16 = 0;
+        let font: Vec<u8> = vec![
             0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
             0x20, 0x60, 0x20, 0x20, 0x70, // 1
             0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -312,7 +312,6 @@ impl Machine {
                     v[x as usize] = (random_range(0..255) & (kk as u8)) as u8;
                 }
                 0xD => {
-                    //TODO: Screen DRAW --> Will be done after implementing Screen with SDL
                     /*
                     Dxyn - DRW Vx, Vy, nibble
                     Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
@@ -473,8 +472,6 @@ impl Machine {
         let mut buffer = Vec::new();
         rom.read_to_end(&mut buffer).expect("Failed to read ROM");
         self.memory[0x200..(0x200 + buffer.len())].copy_from_slice(&buffer);
-        let memory = &self.memory;
-        let memory_length = memory.len();
     }
 
     pub fn new() -> Machine{
